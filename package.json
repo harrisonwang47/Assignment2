@@ -18,7 +18,9 @@
     "mongoose": "^4.0.1",
     "mongoose-findorcreate": "^0.1.2",
     "passport": "0.2.1",
-    "passport-instagram": "0.1.2"
+    "passport-instagram": "0.1.2",
+    "passport-soundcloud": "^0.1.2",
+    "soundcloud-node": "0.0.10"
   },
   "engines": {
     "node": "0.10.x"

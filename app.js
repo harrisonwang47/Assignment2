@@ -2,6 +2,7 @@
 var express = require('express');
 var passport = require('passport');
 var InstagramStrategy = require('passport-instagram').Strategy;
+var SoundCloudStrategy = require('passport-soundcloud').Strategy;
 var http = require('http');
 var path = require('path');
 var handlebars = require('express-handlebars');
@@ -11,17 +12,24 @@ var cookieParser = require('cookie-parser');
 var dotenv = require('dotenv');
 var mongoose = require('mongoose');
 var Instagram = require('instagram-node-lib');
+var Soundcloud = require('soundcloud-node');
 var async = require('async');
 var app = express();
 
 //local dependencies
 var models = require('./models');
 
+
 //client id and client secret here, taken from .env
 dotenv.load();
 var INSTAGRAM_CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
 var INSTAGRAM_CLIENT_SECRET = process.env.INSTAGRAM_CLIENT_SECRET;
 var INSTAGRAM_CALLBACK_URL = process.env.INSTAGRAM_CALLBACK_URL;
+
+var SOUNDCLOUD_CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID;
+var SOUNDCLOUD_CLIENT_SECRET = process.env.SOUNDCLOUD_CLIENT_SECRET;
+var SOUNDCLOUD_CALLBACK_URL = process.env.SOUNDCLOUD_CALLBACK_URL;
+
 Instagram.set('client_id', INSTAGRAM_CLIENT_ID);
 Instagram.set('client_secret', INSTAGRAM_CLIENT_SECRET);
 
@@ -48,6 +56,51 @@ passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
 
+passport.use(new SoundCloudStrategy({
+  clientID: SOUNDCLOUD_CLIENT_ID,
+  clientSecret: SOUNDCLOUD_CLIENT_SECRET,
+  callbackURL: SOUNDCLOUD_CALLBACK_URL
+},
+  function(accessToken, refreshToken, profile, done) {
+    // asynchronous verification, for effect...
+   models.User.findOne({
+    "ig_id": profile.id
+   }, function(err, user) {
+      if (err) {
+        return done(err); 
+      }
+      
+      //didnt find a user
+      if (!user) {
+        newUser = new models.User({
+          name: profile.username, 
+          ig_id: profile.id,
+          sc_access_token: accessToken
+        });
+
+        newUser.save(function(err) {
+          if(err) {
+            console.log(err);
+          } else {
+            console.log('user: ' + newUser.name + " created.");
+          }
+          return done(null, newUser);
+        });
+      } else {
+        //update user here
+        user.sc_access_token = accessToken;
+        user.save();
+        process.nextTick(function () {
+          // To keep the example simple, the user's Instagram profile is returned to
+          // represent the logged-in user.  In a typical application, you would want
+          // to associate the Instagram account with a user record in your database,
+          // and return that user instead.
+          return done(null, user);
+        });
+      }
+   });
+  }
+));
 
 // Use the InstagramStrategy within Passport.
 //   Strategies in Passport require a `verify` function, which accept
@@ -225,12 +278,21 @@ app.get('/c3visualization', ensureAuthenticatedInstagram, function (req, res){
   res.render('c3visualization');
 }); 
 
+app.get('/auth/soundcloud',
+  passport.authenticate('soundcloud'));
+
 app.get('/auth/instagram',
   passport.authenticate('instagram'),
   function(req, res){
     // The request will be redirected to Instagram for authentication, so this
     // function will not be called.
   });
+
+app.get('/auth/soundcloud/callback',
+  passport.authenticate('soundcloud', { failureRedirect: '/login'}),
+  function(req, res) {
+    res.redirect('/account');
+});
 
 app.get('/auth/instagram/callback', 
   passport.authenticate('instagram', { failureRedirect: '/login'}),
