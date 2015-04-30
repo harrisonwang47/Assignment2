@@ -5,6 +5,7 @@ var findOrCreate = require('mongoose-findorcreate');
 var userSchema = mongoose.Schema({
 	"name" : { type: String },
     "ig_id" : { type: String},
+    "sc_id" : { typw: String},
 	"ig_access_token" : { type: String },
 	"sc_access_token" : { type: String}
 });

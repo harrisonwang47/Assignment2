@@ -12,7 +12,7 @@ var cookieParser = require('cookie-parser');
 var dotenv = require('dotenv');
 var mongoose = require('mongoose');
 var Instagram = require('instagram-node-lib');
-var Soundcloud = require('soundcloud-node');
+var SoundCloud = require('soundcloud-node');
 var async = require('async');
 var app = express();
 
@@ -56,6 +56,39 @@ passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
 
+//Instantiate the client
+var client = new SoundCloud(SOUNDCLOUD_CLIENT_ID, SOUNDCLOUD_CLIENT_SECRET, SOUNDCLOUD_CALLBACK_URL);
+
+//Connect User
+var oauthInit = function(req, res) {
+  var url = client.getConnectUrl();
+  res.writeHead(301, url);
+  res.end();
+};
+
+//Get OAuth Token
+//callback funtion from the connect url
+var oauthHandleToken = function(req, res) {
+  var query = req.query;
+
+  client.getToken(query.code, function(err, tokens) {
+    if (err)
+      callback(err);
+    else {
+      callback(null, tokens);
+    }
+  });
+};
+
+var user_id;
+var getUser = client.getMe(function(err, user) {
+    user_id = user.id;
+
+    //  Then you can set it to the API like
+    client.setUser(user_id);
+    console.log(user_id);
+});
+
 passport.use(new SoundCloudStrategy({
   clientID: SOUNDCLOUD_CLIENT_ID,
   clientSecret: SOUNDCLOUD_CLIENT_SECRET,
@@ -64,7 +97,7 @@ passport.use(new SoundCloudStrategy({
   function(accessToken, refreshToken, profile, done) {
     // asynchronous verification, for effect...
    models.User.findOne({
-    "ig_id": profile.id
+    "sc_id": profile.id
    }, function(err, user) {
       if (err) {
         return done(err); 
@@ -74,7 +107,7 @@ passport.use(new SoundCloudStrategy({
       if (!user) {
         newUser = new models.User({
           name: profile.username, 
-          ig_id: profile.id,
+          sc_id: profile.id,
           sc_access_token: accessToken
         });
 
@@ -190,6 +223,13 @@ function ensureAuthenticatedInstagram(req, res, next) {
   res.redirect('/login');
 }
 
+function ensureAuthenticatedSoundCloud(req, res, next) {
+  if (req.isAuthenicated() && !!req.user.sc_id) {
+    return next();
+  }
+  res.redirect('/login');
+}
+
 
 //routes
 app.get('/', function(req, res){
@@ -229,6 +269,8 @@ app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
   });
 });
 
+
+
 app.get('/igMediaCounts', ensureAuthenticatedInstagram, function(req, res){
   var query  = models.User.where({ ig_id: req.user.ig_id });
   query.findOne(function (err, user) {
@@ -254,8 +296,7 @@ app.get('/igMediaCounts', ensureAuthenticatedInstagram, function(req, res){
                   }
                 });            
             });
-          });
-          
+          });   
           // Now we have an array of functions, each containing an async task
           // Execute all async tasks in the asyncTasks array
           async.parallel(asyncTasks, function(err){
