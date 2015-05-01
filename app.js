@@ -3,6 +3,7 @@ var express = require('express');
 var passport = require('passport');
 var InstagramStrategy = require('passport-instagram').Strategy;
 var SoundCloudStrategy = require('passport-soundcloud').Strategy;
+var FacebookStrategy = require('passport-facebook').Strategy;
 var http = require('http');
 var path = require('path');
 var handlebars = require('express-handlebars');
@@ -13,6 +14,7 @@ var dotenv = require('dotenv');
 var mongoose = require('mongoose');
 var Instagram = require('instagram-node-lib');
 var SoundCloud = require('soundcloud-node');
+var Facebook = require('fbgraph');
 var async = require('async');
 var app = express();
 
@@ -26,9 +28,9 @@ var INSTAGRAM_CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
 var INSTAGRAM_CLIENT_SECRET = process.env.INSTAGRAM_CLIENT_SECRET;
 var INSTAGRAM_CALLBACK_URL = process.env.INSTAGRAM_CALLBACK_URL;
 
-var SOUNDCLOUD_CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID;
-var SOUNDCLOUD_CLIENT_SECRET = process.env.SOUNDCLOUD_CLIENT_SECRET;
-var SOUNDCLOUD_CALLBACK_URL = process.env.SOUNDCLOUD_CALLBACK_URL;
+var FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
+var FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
+var FACEBOOK_REDIRECT_URL = process.env.FACEBOOK_REDIRECT_URL;
 
 Instagram.set('client_id', INSTAGRAM_CLIENT_ID);
 Instagram.set('client_secret', INSTAGRAM_CLIENT_SECRET);
@@ -57,7 +59,7 @@ passport.deserializeUser(function(obj, done) {
 });
 
 //Instantiate the client
-var client = new SoundCloud(SOUNDCLOUD_CLIENT_ID, SOUNDCLOUD_CLIENT_SECRET, SOUNDCLOUD_CALLBACK_URL);
+//var client = new SoundCloud(SOUNDCLOUD_CLIENT_ID, SOUNDCLOUD_CLIENT_SECRET, SOUNDCLOUD_CALLBACK_URL);
 
 //Connect User
 var oauthInit = function(req, res) {
@@ -80,19 +82,10 @@ var oauthHandleToken = function(req, res) {
   });
 };
 
-var user_id;
-var getUser = client.getMe(function(err, user) {
-    user_id = user.id;
-
-    //  Then you can set it to the API like
-    client.setUser(user_id);
-    console.log(user_id);
-});
-
-passport.use(new SoundCloudStrategy({
-  clientID: SOUNDCLOUD_CLIENT_ID,
-  clientSecret: SOUNDCLOUD_CLIENT_SECRET,
-  callbackURL: SOUNDCLOUD_CALLBACK_URL
+passport.use(new FacebookStrategy({
+  clientID: FACEBOOK_APP_ID,
+  clientSecret: FACEBOOK_APP_SECRET,
+  callbackURL: FACEBOOK_REDIRECT_URL
 },
   function(accessToken, refreshToken, profile, done) {
     // asynchronous verification, for effect...
@@ -244,6 +237,10 @@ app.get('/account', ensureAuthenticated, function(req, res){
   res.render('account', {user: req.user});
 });
 
+app.get('/fb_d3', ensureAuthenticated, function(req, res){
+  res.render('fb_d3', {});
+});
+
 app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
   var query  = models.User.where({ ig_id: req.user.ig_id });
   query.findOne(function (err, user) {
@@ -319,8 +316,8 @@ app.get('/c3visualization', ensureAuthenticatedInstagram, function (req, res){
   res.render('c3visualization');
 }); 
 
-app.get('/auth/soundcloud',
-  passport.authenticate('soundcloud'));
+app.get('/auth/facebook',
+  passport.authenticate('facebook'));
 
 app.get('/auth/instagram',
   passport.authenticate('instagram'),
@@ -329,10 +326,11 @@ app.get('/auth/instagram',
     // function will not be called.
   });
 
-app.get('/auth/soundcloud/callback',
-  passport.authenticate('soundcloud', { failureRedirect: '/login'}),
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login'}),
   function(req, res) {
-    res.redirect('/account');
+
+    res.redirect('/fb_d3');
 });
 
 app.get('/auth/instagram/callback', 
