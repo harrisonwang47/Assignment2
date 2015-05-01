@@ -18,6 +18,8 @@ var Facebook = require('fbgraph');
 var async = require('async');
 var app = express();
 
+var superuser;
+
 //local dependencies
 var models = require('./models');
 
@@ -114,8 +116,11 @@ passport.use(new FacebookStrategy({
         });
       } else {
         //update user here
+        Facebook.setAccessToken(accessToken);
         user.sc_access_token = accessToken;
         user.save();
+        superuser = user;
+
         process.nextTick(function () {
           // To keep the example simple, the user's Instagram profile is returned to
           // represent the logged-in user.  In a typical application, you would want
@@ -237,8 +242,25 @@ app.get('/account', ensureAuthenticated, function(req, res){
   res.render('account', {user: req.user});
 });
 
+    var imageArr = [];
+
 app.get('/fb_d3', ensureAuthenticated, function(req, res){
-  res.render('fb_d3', {});
+
+  if(req.user){
+    var array = [];
+    var temp_item;
+    Facebook.setAccessToken(req.user.sc_access_token);
+    Facebook.get("/me/photos" , function(err, res) {
+      for (var i = 0; i < res.data.length; i++)
+      {
+        var someItem = res.data[i];
+        array.push(someItem);
+      }
+      imageArr = array;
+     });
+
+  }
+  return res.json({users: imageArr});   
 });
 
 app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
@@ -260,6 +282,7 @@ app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
             return tempJSON;
           });
           res.render('photos', {photos: imageArr});
+
         }
       }); 
     }
@@ -316,6 +339,10 @@ app.get('/c3visualization', ensureAuthenticatedInstagram, function (req, res){
   res.render('c3visualization');
 }); 
 
+app.get('/fb_c3_vis', function (req, res){
+  res.render('fb_c3_vis');
+}); 
+
 app.get('/auth/facebook',
   passport.authenticate('facebook'));
 
@@ -330,7 +357,7 @@ app.get('/auth/facebook/callback',
   passport.authenticate('facebook', { failureRedirect: '/login'}),
   function(req, res) {
 
-    res.redirect('/fb_d3');
+    res.redirect('/fb_c3_vis');
 });
 
 app.get('/auth/instagram/callback', 
