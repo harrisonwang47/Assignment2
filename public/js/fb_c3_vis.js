@@ -1,8 +1,8 @@
 (function() {
   $.getJSON( '/fb_d3')
-    .done(function( data ) {
-      var yCounts = data.likes.map(function(item){
-        return item.data.length;
+    .done(function( d ) {
+      var yCounts = d.users.map(function(item){
+        return item;
       });
 
       yCounts.unshift('Media Count');

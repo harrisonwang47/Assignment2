@@ -242,6 +242,7 @@ app.get('/account', ensureAuthenticated, function(req, res){
   res.render('account', {user: req.user});
 });
 
+
     var imageArr = [];
 
 app.get('/fb_d3', ensureAuthenticated, function(req, res){
@@ -253,8 +254,18 @@ app.get('/fb_d3', ensureAuthenticated, function(req, res){
     Facebook.get("/me/photos" , function(err, res) {
       for (var i = 0; i < res.data.length; i++)
       {
-        var someItem = res.data[i];
-        array.push(someItem);
+        var someitem = res.data[i];
+        var smallerItem;
+        if(someitem.likes)
+        {
+          smallerItem = someitem.likes.data;
+        }
+        else
+        {
+          array.push(0);
+        }
+        console.log(smallerItem.length);
+        array.push(smallerItem.length);
       }
       imageArr = array;
      });
