@@ -1,5 +1,5 @@
 (function() {
-  $.getJSON( '/fb_d3')
+  $.getJSON( '/fb_c3')
     .done(function( d ) {
       var yCounts = d.users.map(function(item){
         return item;

@@ -244,24 +244,18 @@ app.get('/account', ensureAuthenticated, function(req, res){
 
 var imageArr = [];
 
-app.get('/fb_d3', ensureAuthenticated, function(req, res){
 
-
-    //console.log(req.user);
-
+app.get('/fb_c3', ensureAuthenticated, function(req, res){
     var query = models.User.where({ sc_id: req.user.sc_id });
     query.findOne(function (err, user) 
     {
-
       if (err) return err;
       if (user)
       {
-
         var array = [];
-
         Facebook.setAccessToken(user.sc_access_token);
         Facebook.get("/me/photos", function(err, res) {
-          console.log(res);
+        console.log(res);
           
           for (var i = 0; i < res.data.length; i++)
           {
@@ -282,12 +276,48 @@ app.get('/fb_d3', ensureAuthenticated, function(req, res){
           
          });
           return res.json({users: imageArr});   
-
       }
-
     });
   });
 
+var groupArr = [];
+
+app.get('/fb_d3', ensureAuthenticated, function(req, res){
+  var query = models.User.where({ sc_id: req.user.sc_id });
+  query.findOne(function (err, user) 
+  {
+    var array = [];
+    if (err) return err;
+    if (user)
+    {
+      Facebook.setAccessToken(user.sc_access_token);
+      Facebook.get("/me/groups", function(err, res) {
+      for (var i = 0; i < res.data.length; i++)
+      {
+        var someItem = res.data[i];
+        var smallerItem;
+        //console.log(res.data[i].name);
+        if(someItem.name)
+        {
+          smallerItem = someItem.name;
+        
+        }
+        array.push(smallerItem);
+        groupArr.push(smallerItem);
+      }
+      groupArr = array;
+      //console.log(groupArr);
+    });
+      console.log(groupArr);
+    }
+    return res.json({users: groupArr});  
+  });
+});
+
+
+
+
+//app.get('/fb_d3'), 
 
 app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
   var query  = models.User.where({ ig_id: req.user.ig_id });
@@ -308,7 +338,6 @@ app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
             return tempJSON;
           });
           res.render('photos', {photos: imageArr});
-
         }
       }); 
     }
@@ -369,8 +398,12 @@ app.get('/fb_c3_vis', function (req, res){
   res.render('fb_c3_vis');
 }); 
 
+app.get('/fb_d3_vis', function (req, res){
+  res.render('fb_d3_vis');
+});
+
 app.get('/auth/facebook',
-passport.authenticate('facebook', { scope: ['user_status', 'user_photos'] }));
+passport.authenticate('facebook', { scope: ['user_status', 'user_photos', 'user_groups'] }));
 
 
 app.get('/auth/instagram',
