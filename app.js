@@ -2,7 +2,7 @@
 var express = require('express');
 var passport = require('passport');
 var InstagramStrategy = require('passport-instagram').Strategy;
-var SoundCloudStrategy = require('passport-soundcloud').Strategy;
+//var SoundCloudStrategy = require('passport-soundcloud').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
 var http = require('http');
 var path = require('path');
@@ -13,16 +13,15 @@ var cookieParser = require('cookie-parser');
 var dotenv = require('dotenv');
 var mongoose = require('mongoose');
 var Instagram = require('instagram-node-lib');
-var SoundCloud = require('soundcloud-node');
+//var SoundCloud = require('soundcloud-node');
 var Facebook = require('fbgraph');
 var async = require('async');
 var app = express();
 
-var superuser;
+var superuser = {};
 
 //local dependencies
 var models = require('./models');
-
 
 //client id and client secret here, taken from .env
 dotenv.load();
@@ -101,7 +100,7 @@ passport.use(new FacebookStrategy({
       //didnt find a user
       if (!user) {
         newUser = new models.User({
-          name: profile.username, 
+          name: profile.name, 
           sc_id: profile.id,
           sc_access_token: accessToken
         });
@@ -118,9 +117,10 @@ passport.use(new FacebookStrategy({
         //update user here
         Facebook.setAccessToken(accessToken);
         user.sc_access_token = accessToken;
+        superuser.access_token = accessToken;
         user.save();
-        superuser = user;
-
+        //superuser = user;
+        console.log(superuser);
         process.nextTick(function () {
           // To keep the example simple, the user's Instagram profile is returned to
           // represent the logged-in user.  In a typical application, you would want
@@ -221,13 +221,12 @@ function ensureAuthenticatedInstagram(req, res, next) {
   res.redirect('/login');
 }
 
-function ensureAuthenticatedSoundCloud(req, res, next) {
-  if (req.isAuthenicated() && !!req.user.sc_id) {
-    return next();
+function ensureAuthenticatedFacebook(req, res, next) {
+  if (req.isAuthenticated() && !!req.user.sc_id) { 
+    return next(); 
   }
   res.redirect('/login');
 }
-
 
 //routes
 app.get('/', function(req, res){
@@ -243,36 +242,52 @@ app.get('/account', ensureAuthenticated, function(req, res){
 });
 
 
-    var imageArr = [];
+var imageArr = [];
 
 app.get('/fb_d3', ensureAuthenticated, function(req, res){
 
-  if(req.user){
-    var array = [];
-    var temp_item;
-    Facebook.setAccessToken(req.user.sc_access_token);
-    Facebook.get("/me/photos" , function(err, res) {
-      for (var i = 0; i < res.data.length; i++)
-      {
-        var someitem = res.data[i];
-        var smallerItem;
-        if(someitem.likes)
-        {
-          smallerItem = someitem.likes.data;
-        }
-        else
-        {
-          array.push(0);
-        }
-        console.log(smallerItem.length);
-        array.push(smallerItem.length);
-      }
-      imageArr = array;
-     });
 
-  }
-  return res.json({users: imageArr});   
-});
+    //console.log(req.user);
+
+    var query = models.User.where({ sc_id: req.user.sc_id });
+    query.findOne(function (err, user) 
+    {
+
+      if (err) return err;
+      if (user)
+      {
+
+        var array = [];
+
+        Facebook.setAccessToken(user.sc_access_token);
+        Facebook.get("/me/photos", function(err, res) {
+          console.log(res);
+          
+          for (var i = 0; i < res.data.length; i++)
+          {
+            var someitem = res.data[i];
+            var smallerItem;
+            if(someitem.likes)
+            {
+              smallerItem = someitem.likes.data;
+            }
+            else
+            {
+              array.push(0);
+            }
+            console.log(smallerItem.length);
+            array.push(smallerItem.length);
+          }
+          imageArr = array;
+          
+         });
+          return res.json({users: imageArr});   
+
+      }
+
+    });
+  });
+
 
 app.get('/igphotos', ensureAuthenticatedInstagram, function(req, res){
   var query  = models.User.where({ ig_id: req.user.ig_id });
@@ -355,7 +370,8 @@ app.get('/fb_c3_vis', function (req, res){
 }); 
 
 app.get('/auth/facebook',
-  passport.authenticate('facebook'));
+passport.authenticate('facebook', { scope: ['user_status', 'user_photos'] }));
+
 
 app.get('/auth/instagram',
   passport.authenticate('instagram'),
